@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akash Trade International - Management Portal (BETA v2)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <!-- BETA CLOUD SYNC: Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        body { background-color: #f4f6f9; padding: 20px; color: #333; }
+        
+        /* Login Overlay Styles */
+        #loginOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .login-box {
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            width: 350px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .login-box h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .login-box .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .login-box label {
+            display: block;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        .login-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            outline: none;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 10px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .login-btn:hover {
+            opacity: 0.9;
+        }
+        .error-msg {
+            color: #c0392b;
+            font-size: 12px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .container { max-width: 1250px; margin: auto; background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        
+        .header-section { text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 15px; margin-bottom: 20px; position: relative; }
+        .header-section h2 { color: #2c3e50; text-transform: uppercase; }
+        .header-section p { font-weight: bold; color: #555; }
+
+        .metrics-container { display: none; }
+        .card { flex: 1; min-width: 200px; background: #2c3e50; color: white; padding: 15px; border-radius: 8px; text-align: center; }
+        .card h3 { font-size: 13px; text-transform: uppercase; opacity: 0.9; margin-bottom: 5px; }
+        .card .amount { font-size: 18px; font-weight: bold; color: #2ecc71; }
+
+        .form-section { background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+        .form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; outline: none; }
+        .form-group input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
+        
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        button { padding: 9px 18px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; color: white; }
+        .btn-add { background: #27ae60; }
+        .btn-save { background: #2980b9; }
+        .btn-update { background: #f39c12; }
+        .btn-delete { background: #c0392b; }
+        .btn-reset { background: #7f8c8d; }
+        .btn-scan { background: #8e44ad; }
+        .btn-export { background: #16a085; }
+        .btn-view { background: #2980b9; padding: 4px 8px; font-size: 11px; margin-right: 3px; }
+        .btn-download { background: #27ae60; padding: 4px 8px; font-size: 11px; }
+        .btn-row-delete { background: #c0392b; padding: 4px 8px; font-size: 11px; }
+        .beta-badge { display:inline-block; background:#8e44ad; color:#fff; padding:3px 9px; border-radius:12px; font-size:11px; margin-left:6px; }
+        .cloud-status { margin-top:8px; font-size:12px; font-weight:bold; }
+        .cloud-online { color:#16803c; }
+        .cloud-offline { color:#c0392b; }
+        .registered-help { font-size:10px; color:#666; margin-top:3px; }
+        button:hover { opacity: 0.85; }
+
+        .search-section { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 20px; }
+        .search-main { margin-bottom: 12px; }
+        .search-main input { width: 100%; padding: 9px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; outline: none; }
+
+        .scanner-barcode {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: -5px 0 18px;
+            padding: 10px 12px;
+            background: #fff;
+            border: 1px solid #d9dee3;
+            border-radius: 6px;
+        }
+        .scanner-barcode svg {
+            width: min(520px, 95%);
+            height: 58px;
+            display: block;
+        }
+        .scanner-barcode .barcode-label {
+            margin-top: 5px;
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .scanner-barcode .scan-hint {
+            margin-top: 3px;
+            font-size: 11px;
+            color: #666;
+        }
+
+        .month-display-header { 
+            background: #2c3e50; 
+            color: #ffffff; 
+            padding: 12px 15px; 
+            border-radius: 6px; 
+            margin-bottom: 15px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+        table, th, td { border: 1px solid #dee2e6; }
+        th { 
+            background: #34495e; 
+            color: white; 
+            padding: 10px; 
+            font-size: 13px; 
+            text-align: center; 
+            vertical-align: middle;
+            white-space: nowrap; 
+        }
+        td { padding: 8px 10px; font-size: 13px; text-align: center; vertical-align: middle; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        tr:hover { background-color: #eef2f5; }
+
+        .total-count-section {
+            background: #2c3e50;
+            color: #fff;
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin: -5px 0 25px;
+            font-size: 14px;
+        }
+        .total-count-section > div:first-child {
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .total-count-values {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .total-count-values span {
+            background: rgba(255,255,255,0.12);
+            padding: 8px 12px;
+            border-radius: 5px;
+            min-width: 125px;
+            text-align: center;
+        }
+
+        .upload-section { background: #ebf5fb; padding: 20px; border-radius: 8px; border: 1px dashed #3498db; }
+        .upload-section h3 { margin-bottom: 15px; font-size: 16px; color: #2980b9; }
+
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); }
+        .modal-content { background-color: #fff; margin: 5% auto; padding: 25px; border-radius: 8px; width: 80%; max-width: 800px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
+        .close-btn { position: absolute; right: 20px; top: 15px; font-size: 24px; font-weight: bold; cursor: pointer; color: #777; }
+        .close-btn:hover { color: #000; }
+        
+        .footer-signatures { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ccc; }
+        .sig-box { text-align: center; width: 200px; font-size: 12px; font-weight: bold; }
+        .sig-line { border-top: 1px solid #333; margin-top: 40px; margin-bottom: 5px; }
+
+        @media print {
+            .form-section, .search-section, .upload-section, .btn-group, .action-col { display: none !important; }
+            .container { box-shadow: none; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Login Modal Overlay -->
+<div id="loginOverlay">
+    <div class="login-box">
+        <h2>Portal Login</h2>
+        <div class="form-group">
+            <label>User ID</label>
+            <input type="text" id="loginUser" placeholder="Enter User ID">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="loginPass" placeholder="Enter Password">
+        </div>
+        <button class="login-btn" onclick="checkLogin()">Login</button>
+        <div id="loginError" class="error-msg">Incorrect User ID or Password!</div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="header-section">
+        <h2>AKASH TRADE INTERNATIONAL</h2>
+        <p>Status: <span style="color: green;">BETA</span><span class="beta-badge">CLOUD SYNC</span></p><div id="cloudStatus" class="cloud-status cloud-offline">Cloud: Connecting...</div>
+    </div>
+
+    <div class="metrics-container">
+        <div class="card">
+            <h3>Total Despatch Entries</h3>
+            <div class="amount" id="box-total-entries">0</div>
+        </div>
+        <div class="card">
+            <h3>Total Bill Tax/Vat</h3>
+            <div class="amount" id="box-total-tax">0.00 TK</div>
+        </div>
+        <div class="card">
+            <h3>Total Taka Amount</h3>
+            <div class="amount" id="box-total-taka">0.00 TK</div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>S/L No</label>
+                <input type="text" id="slNo" placeholder="e.g. 1">
+            </div>
+            <div class="form-group">
+                <label>Registered No (Permanent)</label>
+                <input type="text" id="trackNo" readonly placeholder="Auto Generated"><div class="registered-help">Auto-generated and permanent.</div>
+            </div>
+            <div class="form-group">
+                <label>Shipper Name</label>
+                <input type="text" id="shipper" placeholder="Enter Shipper Name">
+            </div>
+            <div class="form-group">
+                <label>Bill To</label>
+                <input type="text" id="billTo" placeholder="Enter Bill To">
+            </div>
+            <div class="form-group">
+                <label>Bill From</label>
+                <input type="text" id="billFrom" placeholder="Enter Bill From">
+            </div>
+            <div class="form-group">
+                <label>Total Bill Amount</label>
+                <input type="number" id="totalBill" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>Tax / Vat Amount</label>
+                <input type="number" id="taxVat" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>Total Taka Amount</label>
+                <input type="number" id="totalTaka" placeholder="0.00" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Despatch Code/No</label>
+                <input type="text" id="despatch" placeholder="Enter Despatch">
+            </div>
+            <div class="form-group">
+                <label>Remark</label>
+                <input type="text" id="remark" placeholder="Enter Remark">
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-add" onclick="addData()">ADD DATA</button>
+            <button class="btn-save" onclick="saveData()">SAVE</button>
+            <button class="btn-update" onclick="updateData()">UPDATE</button>
+            <button class="btn-delete" onclick="deleteData()">DELETE</button>
+            <button class="btn-reset" onclick="resetForm()">ADD NEW</button>
+            <button class="btn-scan" onclick="scanDoc()">SCAN DOCUMENT</button>
+            <button class="btn-export" onclick="exportCSV()">DOWNLOAD CSV</button>
+            <button class="btn-save" onclick="window.print()">PRINT / DOWNLOAD PDF</button>
+        </div>
+    </div>
+
+    <div class="search-section">
+        <div class="search-main">
+            <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Search by Registered No, S/L, Shipper, Bill To, Bill From, Remark...">
+        </div>
+        <div class="form-grid" style="margin-bottom: 0;">
+            <div class="form-group">
+                <label>Month Filter</label>
+                <select id="filterMonth" onchange="filterTable()">
+                    <option value="January">January</option>
+                    <option value="February">February</option>
+                    <option value="March">March</option>
+                    <option value="April">April</option>
+                    <option value="May">May</option>
+                    <option value="June">June</option>
+                    <option value="July">July</option>
+                    <option value="August" selected>August</option>
+                    <option value="September">September</option>
+                    <option value="October">October</option>
+                    <option value="November">November</option>
+                    <option value="December">December</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Year Filter</label>
+                <select id="filterYear" onchange="filterTable()">
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026" selected>2026</option>
+                    <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="month-display-header" id="monthYearDisplay">
+        Month of August, 2026
+    </div>
+
+    <div class="scanner-barcode" id="scannerBarcode">
+        <svg id="barcodeSvg" role="img" aria-label="Scanner barcode"></svg>
+        <div class="barcode-label" id="barcodeLabel">REG-1003</div>
+        <div class="scan-hint">SCAN REGISTERED NO</div>
+    </div>
+
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>S/L</th>
+                <th>Registered No</th>
+                <th>Shipper Name</th>
+                <th>Bill To</th>
+                <th>Bill From</th>
+                <th>Total Bill</th>
+                <th>Tax / Vat</th>
+                <th>Total Taka</th>
+                <th>Despatch Code</th>
+                <th>Remark</th>
+                <th class="action-col">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <div id="totalCountSection" class="total-count-section">
+        <div><strong>Total Count</strong></div>
+        <div class="total-count-values">
+            <span>S/L: <strong id="totalSLCount">0</strong></span>
+            <span>Entries: <strong id="totalEntryCount">0</strong></span>
+            <span>Total Bill: <strong id="totalBillCount">0.00</strong></span>
+            <span>Tax / Vat: <strong id="totalTaxCount">0.00</strong></span>
+            <span>Total Taka: <strong id="totalTakaCount">0.00 TK</strong></span>
+        </div>
+    </div>
+
+    <div class="upload-section">
+        <h3>Upload Related Files (Excel, Word, PDF)</h3>
+        <div class="search-main" style="margin-bottom: 12px;">
+            <input type="text" id="fileSearchInput" onkeyup="filterUploadedFiles()" placeholder="Search uploaded files by Registered No or File Name...">
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Upload Registered No (Auto)</label>
+                <input type="text" id="fileTrackNo" readonly placeholder="Auto Generated">
+            </div>
+            <div class="form-group">
+                <label>Select Document File</label>
+                <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.jpg,.jpeg,.png">
+            </div>
+            <div class="form-group" style="align-self: flex-end; display: flex; gap: 5px;">
+                <button class="btn-save" onclick="uploadFile()">Upload File + Registered No</button>
+                <button class="btn-save" onclick="saveUploadedFile()">SAVE</button>
+                <button class="btn-add" onclick="addNewFile()">ADD</button>
+            </div>
+        </div>
+        <p style="margin-top:8px;font-size:12px;color:#555;">
+            Upload করার পর Save দিন, এরপর ADD বাটনে ক্লিক করে নতুন ফাইল আপলোড করতে পারবেন।
+        </p>
+        
+        <h4 style="margin-top: 15px; font-size: 14px;">Uploaded Documents List:</h4>
+        <table style="margin-top: 10px; width: 100%; font-size: 13px;" id="uploadedFilesTable">
+            <thead>
+                <tr>
+                    <th>Registered No</th>
+                    <th>File Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer-signatures">
+        <div class="sig-box">
+            <div class="sig-line"></div>
+            Authorized of IT<br>REDOY
+        </div>
+        <div class="sig-box">
+            <div class="sig-line"></div>
+            Account / Manager Verified
+        </div>
+        <div class="sig-box">
+            <div class="sig-line"></div>
+            Proprietor
+        </div>
+    </div>
+</div>
+
+<div id="viewModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <h3 style="margin-bottom: 15px; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Record Details Preview</h3>
+        <div id="modalDetails" style="line-height: 1.8; font-size: 14px;"></div>
+        <div style="margin-top: 20px; text-align: right;">
+            <button class="btn-save" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const FIREBASE_CONFIG = {
+    apiKey: "PASTE_FIREBASE_API_KEY",
+    authDomain: "PASTE_PROJECT.firebaseapp.com",
+    projectId: "PASTE_PROJECT_ID",
+    storageBucket: "PASTE_PROJECT.appspot.com",
+    messagingSenderId: "PASTE_MESSAGING_SENDER_ID",
+    appId: "PASTE_FIREBASE_APP_ID"
+};
+
+const CLOUD_WORKSPACE = "akash-trade-beta";
+let cloudReady = false;
+let cloudDb = null;
+let cloudStorage = null;
+let cloudAuth = null;
+
+let selectedRow = null;
+let uploadedFiles = [];
+let pendingFileObj = null;
+
+const STORAGE_KEY = "akashTradeRecords_beta_v2";
+const FILES_STORAGE_KEY = "akashTradeFiles_beta_v2";
+const REG_KEY = "akashTradeRegisteredCounter_beta_v2";
+const FILE_REG_KEY = "akashTradeFileRegisteredCounter_beta_v2";
+
+let registeredCounter = parseInt(localStorage.getItem(REG_KEY), 10) || 1001;
+let fileRegisteredCounter = parseInt(localStorage.getItem(FILE_REG_KEY), 10) || 5001;
+
+function checkLogin() {
+    const user = document.getElementById("loginUser").value;
+    const pass = document.getElementById("loginPass").value;
+    const errorMsg = document.getElementById("loginError");
+
+    if (user === "redoy" && pass === "akash1") {
+        document.getElementById("loginOverlay").style.display = "none";
+        initCloud();
+    } else {
+        errorMsg.style.display = "block";
+    }
+}
+
+function nextRegisteredNo() {
+    const n = registeredCounter;
+    registeredCounter++;
+    localStorage.setItem(REG_KEY, String(registeredCounter));
+    return "REG-" + n;
+}
+
+function nextFileRegisteredNo() {
+    const n = fileRegisteredCounter;
+    fileRegisteredCounter++;
+    localStorage.setItem(FILE_REG_KEY, String(fileRegisteredCounter));
+    return "REGF-" + n;
+}
+
+function generateAutoRegistered() {
+    const reg = "REG-" + registeredCounter;
+    document.getElementById("trackNo").value = reg;
+    updateScannerBarcode(reg);
+}
+
+function syncUploadRegisteredNumber() {
+    const reg = "REGF-" + fileRegisteredCounter;
+    const uploadField = document.getElementById("fileTrackNo");
+    if (uploadField) uploadField.value = reg;
+}
+
+function updateScannerBarcode(regNo) {
+    const label = document.getElementById("barcodeLabel");
+    const svg = document.getElementById("barcodeSvg");
+    if (!label || !svg) return;
+    label.innerText = regNo;
+    if (typeof JsBarcode === "function") {
+        try {
+            JsBarcode(svg, regNo, {
+                format: "CODE128",
+                lineColor: "#111",
+                width: 2,
+                height: 52,
+                displayValue: false,
+                margin: 4
+            });
+        } catch (e) {
+            svg.innerHTML = "";
+        }
+    }
+}
+
+function setCloudStatus(text, online) {
+    const el = document.getElementById("cloudStatus");
+    if (!el) return;
+    el.textContent = text;
+    el.className = "cloud-status " + (online ? "cloud-online" : "cloud-offline");
+}
+
+function firebaseConfigured() {
+    return FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("PASTE_");
+}
+
+async function initCloud() {
+    if (!firebaseConfigured()) {
+        setCloudStatus("Cloud: Not configured — browser fallback active", false);
+        return;
+    }
+    try {
+        if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+        cloudAuth = firebase.auth();
+        cloudDb = firebase.firestore();
+        cloudStorage = firebase.storage();
+
+        await cloudAuth.signInAnonymously();
+        cloudReady = true;
+        setCloudStatus("Cloud: Connected — auto sync ON", true);
+        await cloudPullAll();
+        startCloudListeners();
+    } catch (err) {
+        cloudReady = false;
+        setCloudStatus("Cloud: Connection failed — local fallback active", false);
+    }
+}
+
+function recordToObject(row) {
+    return {
+        id: row.dataset.recordId || row.cells[1].innerText,
+        slNo: row.cells[0].innerText,
+        registeredNo: row.cells[1].innerText,
+        shipper: row.cells[2].innerText,
+        billTo: row.cells[3].innerText,
+        billFrom: row.cells[4].innerText,
+        totalBill: row.cells[5].innerText,
+        taxVat: row.cells[6].innerText,
+        totalTaka: row.cells[7].innerText,
+        despatch: row.cells[8].innerText,
+        remark: row.cells[9].innerText,
+        month: row.getAttribute("data-month") || "",
+        year: row.getAttribute("data-year") || "",
+        updatedAt: Date.now()
+    };
+}
+
+function getAllRecordObjects() {
+    return Array.from(document.querySelectorAll("#dataTable tbody tr")).map(recordToObject);
+}
+
+function saveRecordsToStorage() {
+    const records = getAllRecordObjects();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    localStorage.setItem(REG_KEY, String(registeredCounter));
+    return records;
+}
+
+function saveFilesToStorage() {
+    localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(uploadedFiles));
+    localStorage.setItem(FILE_REG_KEY, String(fileRegisteredCounter));
+}
+
+async function saveAllToCloud() {
+    if (!cloudReady || !cloudDb) return;
+    const records = getAllRecordObjects();
+    const batch = cloudDb.batch();
+    records.forEach(r => {
+        const ref = cloudDb.collection("workspaces").doc(CLOUD_WORKSPACE)
+            .collection("records").doc(r.id);
+        batch.set(ref, r, {merge:true});
+    });
+    await batch.commit();
+}
+
+async function cloudPullAll() {
+    if (!cloudReady) return;
+    const recSnap = await cloudDb.collection("workspaces").doc(CLOUD_WORKSPACE).collection("records").get();
+    const records = [];
+    recSnap.forEach(doc => records.push(doc.data()));
+    if (records.length) {
+        renderRecords(records);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+    generateAutoRegistered();
+    syncUploadRegisteredNumber();
+    filterTable();
+}
+
+function startCloudListeners() {
+    cloudDb.collection("workspaces").doc(CLOUD_WORKSPACE).collection("records")
+        .onSnapshot(snapshot => {
+            const records = [];
+            snapshot.forEach(doc => records.push(doc.data()));
+            if (records.length) {
+                renderRecords(records);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+                filterTable();
+            }
+        });
+}
+
+function makeRecordRow(record) {
+    const tbody = document.getElementById("dataTable").getElementsByTagName("tbody")[0];
+    const row = tbody.insertRow();
+    row.dataset.recordId = record.id || record.registeredNo;
+    row.setAttribute("data-month", record.month || "");
+    row.setAttribute("data-year", record.year || "");
+    row.onclick = function() { selectRow(this); };
+
+    row.innerHTML = `
+        <td></td><td></td><td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td>
+        <td class="action-col" onclick="event.stopPropagation()">
+            <button class="btn-view" onclick="viewRowDetails(this)">VIEW</button>
+            <button class="btn-download" onclick="downloadRowDetails(this)">DOWNLOAD</button>
+            <button class="btn-row-delete" onclick="deleteRowOnly(this)">DELETE</button>
+        </td>`;
+
+    row.cells[0].innerText = record.slNo || "";
+    row.cells[1].innerText = record.registeredNo || record.trackNo || "";
+    row.cells[2].innerText = record.shipper || "";
+    row.cells[3].innerText = record.billTo || "";
+    row.cells[4].innerText = record.billFrom || "";
+    row.cells[5].innerText = record.totalBill || "";
+    row.cells[6].innerText = record.taxVat || "";
+    row.cells[7].innerText = record.totalTaka || "";
+    row.cells[8].innerText = record.despatch || "";
+    row.cells[9].innerText = record.remark || "";
+    return row;
+}
+
+function renderRecords(records) {
+    const tbody = document.getElementById("dataTable").getElementsByTagName("tbody")[0];
+    tbody.innerHTML = "";
+    records.sort((a,b) => (Number(a.slNo)||0) - (Number(b.slNo)||0));
+    records.forEach(makeRecordRow);
+}
+
+function loadSavedData() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+        const records = JSON.parse(saved);
+        if (records.length) renderRecords(records);
+    } catch (e) {}
+}
+
+function addData() {
+    const slNo = document.getElementById("slNo").value.trim();
+    const shipper = document.getElementById("shipper").value.trim();
+    const totalTaka = document.getElementById("totalTaka").value;
+
+    if (!slNo || !shipper || !totalTaka) {
+        alert("Please enter S/L No, Shipper, and Total Taka amount!");
+        return;
+    }
+
+    const registeredNo = nextRegisteredNo();
+    document.getElementById("trackNo").value = registeredNo;
+
+    const currentMonth = document.getElementById("filterMonth").value || "August";
+    const currentYear = document.getElementById("filterYear").value || "2026";
+
+    const record = {
+        id: crypto.randomUUID ? crypto.randomUUID() : (registeredNo + "-" + Date.now()),
+        slNo,
+        registeredNo,
+        shipper,
+        billTo: document.getElementById("billTo").value,
+        billFrom: document.getElementById("billFrom").value,
+        totalBill: document.getElementById("totalBill").value,
+        taxVat: document.getElementById("taxVat").value,
+        totalTaka: parseFloat(totalTaka).toFixed(2),
+        despatch: document.getElementById("despatch").value,
+        remark: document.getElementById("remark").value,
+        month: currentMonth,
+        year: currentYear,
+        updatedAt: Date.now()
+    };
+
+    makeRecordRow(record);
+    saveRecordsToStorage();
+    filterTable();
+    saveAllToCloud().catch(console.error);
+    resetForm();
+    alert("Record saved. Permanent Registered No: " + registeredNo);
+}
+
+function selectRow(row) {
+    selectedRow = row;
+    document.getElementById("slNo").value = row.cells[0].innerText;
+    document.getElementById("trackNo").value = row.cells[1].innerText;
+    document.getElementById("shipper").value = row.cells[2].innerText;
+    document.getElementById("billTo").value = row.cells[3].innerText;
+    document.getElementById("billFrom").value = row.cells[4].innerText;
+    document.getElementById("totalBill").value = row.cells[5].innerText;
+    document.getElementById("taxVat").value = row.cells[6].innerText;
+    document.getElementById("totalTaka").value = row.cells[7].innerText;
+    document.getElementById("despatch").value = row.cells[8].innerText;
+    document.getElementById("remark").value = row.cells[9].innerText;
+    updateScannerBarcode(row.cells[1].innerText);
+}
+
+async function updateData() {
+    if (!selectedRow) {
+        alert("Please select a row from the table to update!");
+        return;
+    }
+
+    const permanentRegisteredNo = selectedRow.cells[1].innerText;
+    selectedRow.cells[0].innerText = document.getElementById("slNo").value;
+    selectedRow.cells[2].innerText = document.getElementById("shipper").value;
+    selectedRow.cells[3].innerText = document.getElementById("billTo").value;
+    selectedRow.cells[4].innerText = document.getElementById("billFrom").value;
+    selectedRow.cells[5].innerText = document.getElementById("totalBill").value;
+    selectedRow.cells[6].innerText = document.getElementById("taxVat").value;
+    selectedRow.cells[7].innerText = parseFloat(document.getElementById("totalTaka").value || 0).toFixed(2);
+    selectedRow.cells[8].innerText = document.getElementById("despatch").value;
+    selectedRow.cells[9].innerText = document.getElementById("remark").value;
+    selectedRow.cells[1].innerText = permanentRegisteredNo;
+
+    saveRecordsToStorage();
+    filterTable();
+    await saveAllToCloud().catch(console.error);
+    resetForm();
+    alert("Record updated successfully.");
+}
+
+async function deleteRowOnly(btn) {
+    const row = btn.closest("tr");
+    const reg = row.cells[1].innerText;
+    if (!confirm("Delete this record from the active list?\nRegistered No " + reg + " is permanent.")) return;
+
+    const id = row.dataset.recordId || reg;
+    row.remove();
+    if (selectedRow === row) selectedRow = null;
+    saveRecordsToStorage();
+
+    if (cloudReady && cloudDb) {
+        await cloudDb.collection("workspaces").doc(CLOUD_WORKSPACE).collection("records").doc(id).delete().catch(console.error);
+    }
+    filterTable();
+    resetForm();
+}
+
+function deleteData() {
+    if (!selectedRow) {
+        alert("Please select a row from the table to delete!");
+        return;
+    }
+    deleteRowOnly(selectedRow.querySelector(".btn-row-delete"));
+}
+
+async function saveData() {
+    saveRecordsToStorage();
+    saveFilesToStorage();
+    try {
+        await saveAllToCloud();
+        alert("All records saved successfully.");
+    } catch (e) {
+        alert("Saved locally.");
+    }
+}
+
+function resetForm() {
+    selectedRow = null;
+    document.getElementById("slNo").value = "";
+    generateAutoRegistered();
+    document.getElementById("shipper").value = "";
+    document.getElementById("billTo").value = "";
+    document.getElementById("billFrom").value = "";
+    document.getElementById("totalBill").value = "";
+    document.getElementById("taxVat").value = "";
+    document.getElementById("totalTaka").value = "";
+    document.getElementById("despatch").value = "";
+    document.getElementById("remark").value = "";
+}
+
+function recalculateTotals() {
+    const rows = document.querySelectorAll("#dataTable tbody tr");
+    let totalTax = 0, totalTaka = 0, totalBill = 0, count = 0, slCount = 0;
+    for (const row of rows) {
+        if (row.style.display !== "none") {
+            count++; slCount++;
+            totalBill += parseFloat(row.cells[5].innerText) || 0;
+            totalTax += parseFloat(row.cells[6].innerText) || 0;
+            totalTaka += parseFloat(row.cells[7].innerText) || 0;
+        }
+    }
+    document.getElementById("box-total-entries").innerText = count;
+    document.getElementById("box-total-tax").innerText = totalTax.toFixed(2) + " TK";
+    document.getElementById("box-total-taka").innerText = totalTaka.toFixed(2) + " TK";
+    document.getElementById("totalSLCount").innerText = slCount;
+    document.getElementById("totalEntryCount").innerText = count;
+    document.getElementById("totalBillCount").innerText = totalBill.toFixed(2);
+    document.getElementById("totalTaxCount").innerText = totalTax.toFixed(2);
+    document.getElementById("totalTakaCount").innerText = totalTaka.toFixed(2) + " TK";
+}
+
+function filterTable() {
+    const searchText = document.getElementById("searchInput").value.toLowerCase();
+    const selectedMonth = document.getElementById("filterMonth").value;
+    const selectedYear = document.getElementById("filterYear").value;
+
+    const displayBox = document.getElementById("monthYearDisplay");
+    displayBox.innerText = `Month of ${selectedMonth || 'All'}, ${selectedYear || 'All'}`;
+
+    const rows = document.querySelectorAll("#dataTable tbody tr");
+    for (const row of rows) {
+        const values = [
+            row.cells[0].innerText, row.cells[1].innerText, row.cells[2].innerText,
+            row.cells[3].innerText, row.cells[4].innerText, row.cells[9].innerText
+        ].map(v => v.toLowerCase());
+
+        const matchesText = values.some(v => v.includes(searchText));
+        const matchesMonth = !selectedMonth || (row.getAttribute("data-month") || "") === selectedMonth;
+        const matchesYear = !selectedYear || (row.getAttribute("data-year") || "") === selectedYear;
+        row.style.display = (matchesText && matchesMonth && matchesYear) ? "" : "none";
+    }
+    recalculateTotals();
+}
+
+function viewRowDetails(btn) {
+    const row = btn.closest("tr");
+    const details = `
+        <p><strong>S/L No:</strong> ${row.cells[0].innerText}</p>
+        <p><strong>Registered No:</strong> ${row.cells[1].innerText}</p>
+        <p><strong>Shipper Name:</strong> ${row.cells[2].innerText}</p>
+        <p><strong>Bill To:</strong> ${row.cells[3].innerText}</p>
+        <p><strong>Bill From:</strong> ${row.cells[4].innerText}</p>
+        <p><strong>Total Bill:</strong> ${row.cells[5].innerText}</p>
+        <p><strong>Tax / Vat:</strong> ${row.cells[6].innerText}</p>
+        <p><strong>Total Taka:</strong> ${row.cells[7].innerText} TK</p>
+        <p><strong>Despatch:</strong> ${row.cells[8].innerText}</p>
+        <p><strong>Remark:</strong> ${row.cells[9].innerText}</p>`;
+    document.getElementById("modalDetails").innerHTML = details;
+    document.getElementById("viewModal").style.display = "block";
+}
+
+function closeModal() {
+    document.getElementById("viewModal").style.display = "none";
+}
+
+function downloadRowDetails(btn) {
+    const row = btn.closest("tr");
+    const data = `AKASH TRADE INTERNATIONAL
+S/L No: ${row.cells[0].innerText}
+Registered No: ${row.cells[1].innerText}
+Shipper Name: ${row.cells[2].innerText}
+Bill To: ${row.cells[3].innerText}
+Bill From: ${row.cells[4].innerText}
+Total Bill: ${row.cells[5].innerText}
+Tax/Vat: ${row.cells[6].innerText}
+Total Taka: ${row.cells[7].innerText} TK
+Despatch: ${row.cells[8].innerText}
+Remark: ${row.cells[9].innerText}`;
+    const blob = new Blob([data], {type:"text/plain"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Record_${row.cells[1].innerText}.txt`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+}
+
+function exportCSV() {
+    const rows = document.querySelectorAll("#dataTable tr");
+    const csv = [];
+    for (const row of rows) {
+        const cols = row.querySelectorAll("td, th");
+        const rowData = [];
+        for (let i=0; i<cols.length-1; i++) {
+            rowData.push('"' + cols[i].innerText.replace(/"/g,'""') + '"');
+        }
+        csv.push(rowData.join(","));
+    }
+    const blob = new Blob([csv.join("\n")], {type:"text/csv"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url; a.download="Akash_Trade_Data.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+}
+
+function scanDoc() {
+    alert("Scanner integration ready.");
+}
+
+function loadSavedFiles() {
+    const savedFiles = localStorage.getItem(FILES_STORAGE_KEY);
+    if (savedFiles) {
+        try { uploadedFiles = JSON.parse(savedFiles); renderUploadedFiles(); }
+        catch(e) {}
+    }
+    const savedCounter = localStorage.getItem(FILE_REG_KEY);
+    if (savedCounter) fileRegisteredCounter = parseInt(savedCounter,10) || fileRegisteredCounter;
+    syncUploadRegisteredNumber();
+}
+
+async function uploadFile() {
+    const registeredNo = document.getElementById("fileTrackNo").value || nextFileRegisteredNo();
+    const fileInput = document.getElementById("fileInput");
+    if (!fileInput.files.length) { alert("Please select a file!"); return; }
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        pendingFileObj = {
+            id: (crypto.randomUUID ? crypto.randomUUID() : registeredNo + "-" + Date.now()),
+            registeredNo,
+            name: file.name,
+            dataUrl: e.target.result
+        };
+        alert("File processed. Click SAVE to store it.");
+    };
+    reader.readAsDataURL(file);
+}
+
+async function saveUploadedFile() {
+    if (!pendingFileObj) {
+        alert("Please upload a file first.");
+        return;
+    }
+    uploadedFiles.push(pendingFileObj);
+    saveFilesToStorage();
+    renderUploadedFiles();
+    fileRegisteredCounter++;
+    localStorage.setItem(FILE_REG_KEY, String(fileRegisteredCounter));
+    syncUploadRegisteredNumber();
+    pendingFileObj = null;
+    document.getElementById("fileInput").value = "";
+    alert("File saved successfully.");
+}
+
+function addNewFile() {
+    pendingFileObj = null;
+    document.getElementById("fileInput").value = "";
+    syncUploadRegisteredNumber();
+    alert("Ready for a new file upload.");
+}
+
+function renderUploadedFiles(filter="") {
+    const tbody=document.getElementById("uploadedFilesTable").getElementsByTagName("tbody")[0];
+    tbody.innerHTML="";
+    const lower=filter.toLowerCase();
+
+    uploadedFiles.forEach(file=>{
+        if(lower && !String(file.registeredNo||"").toLowerCase().includes(lower) &&
+           !String(file.name||"").toLowerCase().includes(lower)) return;
+
+        const tr=tbody.insertRow();
+        tr.innerHTML=`
+            <td>${file.registeredNo||""}</td>
+            <td>${file.name||""}</td>
+            <td>
+                <button class="btn-view" onclick="viewFile('${file.id||""}')">VIEW</button>
+                <button class="btn-download" onclick="downloadFile('${file.id||""}')">DOWNLOAD</button>
+                <button class="btn-row-delete" onclick="deleteFile('${file.id||""}')">DELETE</button>
+            </td>`;
+    });
+}
+
+function filterUploadedFiles() {
+    renderUploadedFiles(document.getElementById("fileSearchInput").value);
+}
+
+function getFileById(id) {
+    return uploadedFiles.find(f=>f.id===id);
+}
+
+function viewFile(id) {
+    const file=getFileById(id);
+    if(!file) return;
+    if(file.dataUrl) {
+        const win=window.open();
+        win.document.write(`<iframe src="${file.dataUrl}" frameborder="0" style="border:0;width:100%;height:100vh" allowfullscreen></iframe>`);
+    }
+}
+
+function downloadFile(id) {
+    const file=getFileById(id);
+    if(!file) return;
+    if(file.dataUrl) {
+        const a=document.createElement("a");
+        a.href=file.dataUrl; a.download=file.name; document.body.appendChild(a); a.click(); a.remove();
+    }
+}
+
+async function deleteFile(id) {
+    const file=getFileById(id);
+    if(!file) return;
+    if(!confirm("Delete this uploaded file?")) return;
+
+    uploadedFiles=uploadedFiles.filter(f=>f.id!==id);
+    saveFilesToStorage();
+    renderUploadedFiles(document.getElementById("fileSearchInput").value);
+}
+
+window.onload = function() {
+    loadSavedData();
+    loadSavedFiles();
+    generateAutoRegistered();
+    syncUploadRegisteredNumber();
+    filterTable();
+};
+</script>
+
+</body>
+</html>
